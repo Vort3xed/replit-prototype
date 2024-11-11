@@ -4,45 +4,45 @@ import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
-export async function POST(request: Request) {
-  const { files, input } = await request.json();
-  const tempDir = path.join(process.cwd(), 'temp');
-  
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir);
-  }
+export async function POST(request: Request): Promise<Response> {
+    const { files, input } = await request.json();
+    const tempDir = path.join(process.cwd(), 'temp');
 
-  // Save all files to the temporary directory
-  for (const file of files) {
-    const filePath = path.join(tempDir, file.name);
-    fs.writeFileSync(filePath, file.content);
-  }
+    if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir);
+    }
 
-  return new Promise((resolve) => {
-    exec('javac *.java', { cwd: tempDir }, (compileError, _, compileStderr) => {
-      if (compileError) {
-        // Clean up temporary files
-        fs.rmSync(tempDir, { recursive: true, force: true });
-        return resolve(
-          NextResponse.json({ output: compileStderr || compileError.message })
-        );
-      }
+    // Save all files to the temporary directory
+    for (const file of files) {
+        const filePath = path.join(tempDir, file.name);
+        fs.writeFileSync(filePath, file.content);
+    }
 
-      exec(
-        `echo "${input}" | java -cp . Main`,
-        { cwd: tempDir },
-        (runError, runStdout, runStderr) => {
-          // Clean up temporary files
-          fs.rmSync(tempDir, { recursive: true, force: true });
+    return new Promise<Response>((resolve) => {
+        exec('javac *.java', { cwd: tempDir }, (compileError, _, compileStderr) => {
+            if (compileError) {
+                // Clean up temporary files
+                fs.rmSync(tempDir, { recursive: true, force: true });
+                return resolve(
+                    NextResponse.json({ output: compileStderr || compileError.message })
+                );
+            }
 
-          if (runError) {
-            return resolve(
-              NextResponse.json({ output: runStderr || runError.message })
+            exec(
+                `echo "${input}" | java -cp . Main`,
+                { cwd: tempDir },
+                (runError, runStdout, runStderr) => {
+                    // Clean up temporary files
+                    fs.rmSync(tempDir, { recursive: true, force: true });
+
+                    if (runError) {
+                        return resolve(
+                            NextResponse.json({ output: runStderr || runError.message })
+                        );
+                    }
+                    resolve(NextResponse.json({ output: runStdout }));
+                }
             );
-          }
-          resolve(NextResponse.json({ output: runStdout }));
-        }
-      );
+        });
     });
-  });
 }
