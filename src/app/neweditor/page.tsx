@@ -6,14 +6,12 @@ import dynamic from 'next/dynamic';
 
 // Dynamically import MonacoEditor to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
-
 declare global {
   interface Window {
     cheerpjInit: (options?: object) => Promise<void>;
     cheerpjRunMain: any;
     cheerpjCreateDisplay: any;
     cheerpjAddStringFile: any;
-    cheerpjMkdir: (path: string) => void;
   }
 }
 
@@ -64,20 +62,21 @@ const HomePage = () => {
 
   // Compile and run Java code
   const runCode = async () => {
-    if (!cheerpjLoaded || !window.cheerpjAddStringFile) {
-      setOutput('CheerpJ is not loaded yet.');
+    if (!cheerpjLoaded) {
+      setOutput('CheerpJ is still loading. Please wait...\n');
       return;
     }
-
     setOutput('Compiling...\n');
 
     // Add files to CheerpJ filesystem
+    const encoder = new TextEncoder();
     Object.entries(files).forEach(([path, content]) => {
-      window.cheerpjAddStringFile('/' + path, content);
+      const encodedContent = encoder.encode(content);
+      window.cheerpjAddStringFile('/str/' + path, encodedContent);
     });
 
     // Compile
-    const sourceFiles = Object.keys(files).map((path) => '/' + path);
+    const sourceFiles = Object.keys(files).map((path) => '/str/' + path);
     const classPath = '/app/tools.jar:/files/';
     const code = await window.cheerpjRunMain(
       'com.sun.tools.javac.Main',
@@ -103,7 +102,7 @@ const HomePage = () => {
 
     // Run
     const mainClass = deriveMainClass(files[activeFile]);
-    window.cheerpjRunMain(mainClass, classPath);
+    await window.cheerpjRunMain(mainClass, classPath);
 
     // Restore console.log
     console.log = originalConsoleLog;
@@ -115,6 +114,11 @@ const HomePage = () => {
     const packageMatch = content.match(/package\s+([\w\.]+);/);
     const packageName = packageMatch ? packageMatch[1] + '.' : '';
     return packageName + className;
+  };
+
+  const handleEditorChange = (value: string | undefined) => {
+    if (value === undefined) return;
+    setFiles({ ...files, [activeFile]: value });
   };
 
   const addFile = () => {
@@ -138,11 +142,6 @@ const HomePage = () => {
     }
   };
 
-  const handleEditorChange = (value: string | undefined) => {
-    if (value === undefined) return;
-    setFiles({ ...files, [activeFile]: value });
-  };
-
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       {/* Sidebar */}
@@ -163,7 +162,10 @@ const HomePage = () => {
             </li>
           ))}
         </ul>
-        <button onClick={runCode}>Run</button>
+        <button onClick={runCode} disabled={!cheerpjLoaded}>
+          Run
+        </button>
+        {!cheerpjLoaded && <div>Loading CheerpJ...</div>}
       </div>
       {/* Editor and Output */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -172,7 +174,8 @@ const HomePage = () => {
           <MonacoEditor
             language="java"
             theme="vs-dark"
-            onChange={(value) => handleEditorChange(value)}
+            value={files[activeFile]}
+            onChange={handleEditorChange}
             options={{ automaticLayout: true }}
           />
         </div>
