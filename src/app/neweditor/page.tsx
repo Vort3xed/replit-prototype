@@ -1,11 +1,11 @@
 "use client";
 
-// pages/index.tsx
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 
-// Dynamically import MonacoEditor to avoid SSR issues
+// import MonacoEditor to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
+
 declare global {
   interface Window {
     cheerpjInit: (options?: object) => Promise<void>;
@@ -15,7 +15,7 @@ declare global {
   }
 }
 
-const HomePage = () => {
+const Editor = () => {
   const [files, setFiles] = useState<{ [path: string]: string }>({
     'Main.java': `public class Main {
     public static void main(String[] args) {
@@ -23,6 +23,8 @@ const HomePage = () => {
     }
 }`,
   });
+
+
   const [activeFile, setActiveFile] = useState('Main.java');
   const [output, setOutput] = useState('');
   const [cheerpjLoaded, setCheerpjLoaded] = useState(false);
@@ -53,7 +55,7 @@ const HomePage = () => {
         };
         document.body.appendChild(script);
       } catch (error) {
-        console.error('Error loading CheerpJ:', error);
+        console.error('Error loading java virtual machine:', error);
       }
     };
 
@@ -63,7 +65,7 @@ const HomePage = () => {
   // Compile and run Java code
   const runCode = async () => {
     if (!cheerpjLoaded) {
-      setOutput('CheerpJ is still loading. Please wait...\n');
+      setOutput('Java virtual machine is still loading! Please wait...\n');
       return;
     }
     setOutput('Compiling...\n');
@@ -75,37 +77,46 @@ const HomePage = () => {
       window.cheerpjAddStringFile('/str/' + path, encodedContent);
     });
 
-    // Compile
-    const sourceFiles = Object.keys(files).map((path) => '/str/' + path);
-    const classPath = '/app/tools.jar:/files/';
-    const code = await window.cheerpjRunMain(
-      'com.sun.tools.javac.Main',
-      classPath,
-      ...sourceFiles,
-      '-d',
-      '/files/',
-      '-Xlint'
-    );
-
-    if (code !== 0) {
-      setOutput((prev) => prev + 'Compilation failed.\n');
-      return;
-    }
-
-    setOutput((prev) => prev + 'Running...\n');
-
     // Redirect console output
     const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
     console.log = (msg: string) => {
       setOutput((prev) => prev + msg + '\n');
     };
+    console.error = (msg: string) => {
+      setOutput((prev) => prev + msg + '\n');
+    };
 
-    // Run
-    const mainClass = deriveMainClass(files[activeFile]);
-    await window.cheerpjRunMain(mainClass, classPath);
+    try {
+      // Compile
+      const sourceFiles = Object.keys(files).map((path) => '/str/' + path);
+      const classPath = '/app/tools.jar:/files/';
+      const code = await window.cheerpjRunMain(
+        'com.sun.tools.javac.Main',
+        classPath,
+        ...sourceFiles,
+        '-d',
+        '/files/',
+        '-Xlint'
+      );
 
-    // Restore console.log
-    console.log = originalConsoleLog;
+      if (code !== 0) {
+        setOutput((prev) => prev + 'Compilation failed.\n');
+        return;
+      }
+
+      setOutput((prev) => prev + 'Running...\n');
+
+      // Run
+      const mainClass = deriveMainClass(files[activeFile]);
+      await window.cheerpjRunMain(mainClass, classPath);
+    } catch (error) {
+      setOutput((prev) => prev + error?.toString() + '\n');
+    } finally {
+      // Restore original console functions
+      console.log = originalConsoleLog;
+      console.error = originalConsoleError;
+    }
   };
 
   const deriveMainClass = (content: string) => {
@@ -142,6 +153,22 @@ const HomePage = () => {
     }
   };
 
+  const renameFile = (oldFileName: string, newFileName: string) => {
+    if (files[newFileName]) {
+      alert('A file with that name already exists.');
+      return;
+    }
+
+    const updatedFiles = { ...files };
+    updatedFiles[newFileName] = updatedFiles[oldFileName];
+    delete updatedFiles[oldFileName];
+    setFiles(updatedFiles);
+
+    if (activeFile === oldFileName) {
+      setActiveFile(newFileName);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       {/* Sidebar */}
@@ -151,13 +178,28 @@ const HomePage = () => {
           {Object.keys(files).map((fileName) => (
             <li key={fileName}>
               <span
-                style={{ cursor: 'pointer', fontWeight: activeFile === fileName ? 'bold' : 'normal' }}
+                style={{
+                  cursor: 'pointer',
+                  fontWeight: activeFile === fileName ? 'bold' : 'normal',
+                }}
                 onClick={() => setActiveFile(fileName)}
               >
                 {fileName}
               </span>
               {fileName !== 'Main.java' && (
-                <button onClick={() => removeFile(fileName)}>x</button>
+                <>
+                  <button onClick={() => removeFile(fileName)}>Delete</button>
+                  <button
+                    onClick={() => {
+                      const newFileName = prompt('Enter new file name', fileName);
+                      if (newFileName && newFileName !== fileName) {
+                        renameFile(fileName, newFileName);
+                      }
+                    }}
+                  >
+                    Rename
+                  </button>
+                </>
               )}
             </li>
           ))}
@@ -193,4 +235,4 @@ const HomePage = () => {
   );
 };
 
-export default HomePage;
+export default Editor;

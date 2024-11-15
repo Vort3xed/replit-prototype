@@ -18,3 +18,30 @@ const handleEditorChange = (value: string | undefined) => {
     setFiles({ ...files, [activeFile]: value });
   };
 ```
+
+Main.java:
+```
+public class Main {
+    public static void main(String[] args) {
+        Class cl = new Class(4,5);
+
+        System.out.println(cl.produce());
+    }
+}
+```
+
+Class.java:
+```
+public class Class {
+    int a;
+    int b;
+    public Class(int a_new, int b_new){
+        a = a_new;
+        b = b_new;
+    }
+
+    public int produce(){
+        return a * b;
+    }
+}
+```
