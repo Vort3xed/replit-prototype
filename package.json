@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@leaningtech/cheerpx": "^1.0.6",
     "@monaco-editor/react": "^4.6.0",
     "browserfs": "^1.4.3",
     "doppiojvm": "^0.5.0",

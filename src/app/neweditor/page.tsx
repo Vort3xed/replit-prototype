@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+import Script from 'next/script';
 
 // import MonacoEditor to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
@@ -30,6 +31,7 @@ const Editor = () => {
   const [cheerpjLoaded, setCheerpjLoaded] = useState(false);
   const outputRef = useRef<HTMLDivElement>(null);
   const displayRef = useRef<HTMLDivElement>(null);
+  const [showDisplay, setShowDisplay] = useState(true); // Default to true or false as needed
 
   // Load CheerpJ
   useEffect(() => {
@@ -50,7 +52,9 @@ const Editor = () => {
               javaProperties: ['java.library.path=/app/cheerpj-natives/natives'],
             });
             window.cheerpjCreateDisplay(-1, -1, displayRef.current);
+
             setCheerpjLoaded(true);
+
           }
         };
         document.body.appendChild(script);
@@ -61,6 +65,20 @@ const Editor = () => {
 
     loadCheerpJ();
   }, []);
+
+  const removeClasses = () => {
+    const element = document.getElementById('cheerpjDisplay');
+    console.log(element);
+    element?.classList.remove("cheerpjLoading");
+    element?.classList.remove("cheerpjNC");
+    console.log(element?.classList);
+  }
+
+  // if (cheerpjLoaded) {
+  //   removeClasses();
+  // }
+
+
 
   // Compile and run Java code
   const runCode = async () => {
@@ -215,9 +233,9 @@ const Editor = () => {
           <button className="rounded-md py-1 bg-stone-400" onClick={addFile}>Add File</button>
           <button className="rounded-md py-1 bg-red-400" onClick={runCode} disabled={!cheerpjLoaded}>Run Main.java</button>
           {!cheerpjLoaded && <div>Loading CheerpJ...</div>}
-          {/* <button onClick={() => setShowDisplay((prev) => !prev)}>
+          <button onClick={() => setShowDisplay((prev) => !prev)}>
             {showDisplay ? 'Hide Display' : 'Show Display'}
-          </button> */}
+          </button>
         </div>
       </div>
       {/* Editor and Output */}
@@ -232,13 +250,16 @@ const Editor = () => {
             options={{ automaticLayout: true }}
           />
         </div>
-        {/* Output */}
         <div style={{ height: '200px', borderTop: '1px solid #ccc', display: 'flex' }}>
           <div style={{ flex: 1, overflow: 'auto', padding: '10px' }}>
             <pre>{output}</pre>
           </div>
           <div style={{ width: '400px', position: 'relative' }}>
-            <div ref={displayRef} style={{ width: '100%', height: '100%' }} />
+            <div ref={displayRef} style={{
+              width: '100%',
+              height: '100%',
+              // Add other styles that counteract the unwanted effects
+            }} />
           </div>
           {/* {showDisplay && <div ref={displayRef} />} */}
         </div>
