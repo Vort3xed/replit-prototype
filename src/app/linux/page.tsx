@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 
-// TypeScript Type Definitions
 declare global {
     interface Window {
         CheerpX: {
@@ -20,7 +19,7 @@ declare global {
                     mounts: Array<{ type: string; path: string; dev: any }>;
                 }) => Promise<any>;
             };
-        };
+        }
     }
 }
 
@@ -29,7 +28,7 @@ export default function Page() {
         const loadCheerpX = async () => {
             return new Promise<void>((resolve, reject) => {
                 if (window.CheerpX) {
-                    resolve(); // CheerpX is already loaded
+                    resolve();
                     return;
                 }
 
@@ -37,17 +36,15 @@ export default function Page() {
                 script.src = "https://cxrtnc.leaningtech.com/1.0.6/cx.js";
                 script.async = true;
                 script.onload = () => resolve();
-                script.onerror = () => reject(new Error("Failed to load."));
+                script.onerror = () => reject(new Error("Failed to load CheerpX script"));
                 document.body.appendChild(script);
             });
         };
 
         const initializeCheerpX = async () => {
             try {
-                // Load the external script
                 await loadCheerpX();
 
-                // Run Bash
                 const cloudDevice = await window.CheerpX.CloudDevice.create(
                     "wss://disks.webvm.io/debian_large_20230522_5044875331.ext2"
                 );
@@ -74,7 +71,7 @@ export default function Page() {
                         "HOME=/home/user",
                         "USER=user",
                         "SHELL=/bin/bash",
-                        "EDITOR=nano",
+                        "EDITOR=vim",
                         "LANG=en_US.UTF-8",
                         "LC_ALL=C",
                     ],
@@ -82,9 +79,41 @@ export default function Page() {
                     uid: 1000,
                     gid: 1000,
                 });
+
+                addCursor(consoleElement);
             } catch (error) {
                 console.error("Failed to initialize CheerpX:", error);
             }
+        };
+
+        const addCursor = (consoleElement: HTMLElement | null) => {
+            if (!consoleElement) return;
+
+            const cursor = document.createElement("span");
+            cursor.id = "terminal-cursor";
+            cursor.textContent = "_";
+            cursor.style.color = "white";
+
+            const blinkCursor = () => {
+                cursor.style.visibility =
+                    cursor.style.visibility === "hidden" ? "visible" : "hidden";
+            };
+
+            setInterval(blinkCursor, 500);
+
+            // Append the cursor to the terminal and adjust as the terminal content changes
+            const observer = new MutationObserver(() => {
+                if (consoleElement.lastChild) {
+                    consoleElement.lastChild.after(cursor);
+                } else {
+                    consoleElement.appendChild(cursor);
+                }
+            });
+
+            observer.observe(consoleElement, {
+                childList: true,
+                subtree: true,
+            });
         };
 
         initializeCheerpX();
@@ -92,7 +121,7 @@ export default function Page() {
 
     return (
         <div className="h-screen m-0">
-            <pre id="console" className="h-full m-0"></pre>
+            <pre id="console" className="h-full m-0 terminal"></pre>
         </div>
     );
 }
