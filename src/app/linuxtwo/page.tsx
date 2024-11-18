@@ -51,6 +51,8 @@ export default function Page() {
             cursorBlink: true,
             fontFamily: "monospace",
             convertEol: true,
+            fontSize: 16,
+            cols: 100,
             theme: {
               background: "#000000",
               foreground: "#FFFFFF",
@@ -88,13 +90,13 @@ export default function Page() {
             }
           });
   
-          term.onResize((size) => {
-            linux.setConsoleSize(size.cols, size.rows);
-          });
+        //   term.onResize((size) => {
+        //     linux.setConsoleSize(size.cols, size.rows);
+        //   });
   
           window.addEventListener("resize", () => {
             term.resize(term.cols, term.rows);
-            linux.setConsoleSize(term.cols, term.rows);
+            // linux.setConsoleSize(term.cols, term.rows);
           });
   
           await linux.run("/bin/bash", ["--login"], {
